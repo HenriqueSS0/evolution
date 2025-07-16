@@ -10,11 +10,14 @@ RUN git clone https://github.com/EvolutionAPI/evolution-api.git /evolution-api
 WORKDIR /evolution-api
 RUN npm install
 
-# Compila
+# Gera as entidades do banco (PRISMA)
+RUN npx prisma generate
+
+# Compila o projeto
 RUN npm run build
 
-# Expõe porta
+# Expõe porta da API
 EXPOSE 8080
 
-# Inicia app
+# Inicia o serviço
 CMD ["npm", "run", "start:prod"]
