@@ -10,8 +10,8 @@ RUN git clone https://github.com/EvolutionAPI/evolution-api.git /evolution-api
 WORKDIR /evolution-api
 RUN npm install
 
-# Gera as entidades do banco (PRISMA)
-RUN npx prisma generate
+# Executa a migração do banco com Prisma
+RUN npx prisma migrate deploy
 
 # Compila o projeto
 RUN npm run build
