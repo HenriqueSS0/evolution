@@ -1,16 +1,17 @@
-FROM node:20-alpine AS builder
+FROM node:20-alpine
 
-RUN apk update && \
-    apk add --no-cache git ffmpeg wget curl bash openssl
+# Instala somente o necessário e com menos camadas
+RUN apk add --no-cache git ffmpeg bash openssl tzdata && \
+    cp /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime && \
+    echo "America/Sao_Paulo" > /etc/timezone
 
-LABEL version="2.3.0" description="Api to control whatsapp features through http requests." 
-LABEL maintainer="Davidson Gomes" git="https://github.com/DavidsonGomes"
-LABEL contact="contato@evolution-api.com"
+ENV TZ=America/Sao_Paulo
+ENV DOCKER_ENV=true
 
 WORKDIR /evolution
 
+# Copia os arquivos necessários
 COPY ./package.json ./tsconfig.json ./
-
 RUN npm install
 
 COPY ./src ./src
@@ -20,39 +21,16 @@ COPY ./manager ./manager
 COPY ./.env.example ./.env
 COPY ./runWithProvider.js ./
 COPY ./tsup.config.ts ./
-
 COPY ./Docker ./Docker
 
-RUN chmod +x ./Docker/scripts/* && dos2unix ./Docker/scripts/*
-
-RUN ./Docker/scripts/generate_database.sh
+# Corrige permissões e linhas de script
+RUN chmod +x ./Docker/scripts/* && \
+    apk add --no-cache dos2unix && \
+    dos2unix ./Docker/scripts/* && \
+    ./Docker/scripts/generate_database.sh
 
 RUN npm run build
 
-FROM node:20-alpine AS final
-
-RUN apk update && \
-    apk add tzdata ffmpeg bash openssl
-
-ENV TZ=America/Sao_Paulo
-
-WORKDIR /evolution
-
-COPY --from=builder /evolution/package.json ./package.json
-COPY --from=builder /evolution/package-lock.json ./package-lock.json
-
-COPY --from=builder /evolution/node_modules ./node_modules
-COPY --from=builder /evolution/dist ./dist
-COPY --from=builder /evolution/prisma ./prisma
-COPY --from=builder /evolution/manager ./manager
-COPY --from=builder /evolution/public ./public
-COPY --from=builder /evolution/.env ./.env
-COPY --from=builder /evolution/Docker ./Docker
-COPY --from=builder /evolution/runWithProvider.js ./runWithProvider.js
-COPY --from=builder /evolution/tsup.config.ts ./tsup.config.ts
-
-ENV DOCKER_ENV=true
-
 EXPOSE 8080
 
-ENTRYPOINT ["/bin/bash", "-c", ". ./Docker/scripts/deploy_database.sh && npm run start:prod" ]
+ENTRYPOINT ["/bin/bash", "-c", ". ./Docker/scripts/deploy_database.sh && npm run start:prod"]
