@@ -1,16 +1,17 @@
-FROM node:20-alpine
+FROM node:20-slim
 
-# Instala somente o necessário e com menos camadas
-RUN apk add --no-cache git ffmpeg bash openssl tzdata && \
+# Atualiza e instala dependências
+RUN apt-get update && \
+    apt-get install -y git ffmpeg bash openssl tzdata dos2unix && \
     cp /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime && \
-    echo "America/Sao_Paulo" > /etc/timezone
+    echo "America/Sao_Paulo" > /etc/timezone && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ENV TZ=America/Sao_Paulo
 ENV DOCKER_ENV=true
 
 WORKDIR /evolution
 
-# Copia os arquivos necessários
 COPY ./package.json ./tsconfig.json ./
 RUN npm install
 
@@ -23,9 +24,7 @@ COPY ./runWithProvider.js ./
 COPY ./tsup.config.ts ./
 COPY ./Docker ./Docker
 
-# Corrige permissões e linhas de script
 RUN chmod +x ./Docker/scripts/* && \
-    apk add --no-cache dos2unix && \
     dos2unix ./Docker/scripts/* && \
     ./Docker/scripts/generate_database.sh
 
